@@ -595,6 +595,34 @@ public class DnsNameResolverTest {
         }
 
         private static final class TestRecordStore implements RecordStore {
+            private static final int[] numbers = new int[254];
+            private static final char[] chars = new char[26];
+
+            static {
+                for (int i = 0; i < numbers.length; i++) {
+                    numbers[i] = i + 1;
+                }
+
+                for (int i = 0; i < chars.length; i++) {
+                    chars[i] =  (char) ('a' + i);
+                }
+            }
+
+            private static int index(int arrayLength) {
+                return Math.abs(ThreadLocalRandom.current().nextInt()) % arrayLength;
+            }
+
+            private static String nextDomain() {
+               return chars[index(chars.length)] + ".netty.io";
+            }
+
+            private static String nextIp() {
+                return ippart() + "." + ippart() + '.' + ippart() + '.' + ippart();
+            }
+
+            private static int ippart() {
+                return numbers[index(numbers.length)];
+            }
 
             @Override
             public Set<ResourceRecord> getRecords(QuestionRecord questionRecord) {
@@ -608,14 +636,22 @@ public class DnsNameResolverTest {
 
                     switch (questionRecord.getRecordType()) {
                     case A:
-                        rm.put(DnsAttribute.IP_ADDRESS, "10.0.0.1");
+                        do {
+                            String ip = nextIp();
+                            rm.put(DnsAttribute.IP_ADDRESS, ip);
+                        } while (ThreadLocalRandom.current().nextBoolean());
                         break;
                     case AAAA:
-                        rm.put(DnsAttribute.IP_ADDRESS, "::1");
+                        do {
+                            rm.put(DnsAttribute.IP_ADDRESS, "::1");
+                        } while (ThreadLocalRandom.current().nextBoolean());
                         break;
                     case MX:
-                        rm.put(DnsAttribute.DOMAIN_NAME, "mail.netty.io");
-                        rm.put(DnsAttribute.MX_PREFERENCE, "10");
+                        int prioritity = 0;
+                        do {
+                            rm.put(DnsAttribute.DOMAIN_NAME, nextDomain());
+                            rm.put(DnsAttribute.MX_PREFERENCE, String.valueOf(++prioritity));
+                        } while (ThreadLocalRandom.current().nextBoolean());
                         break;
                     default:
                         return null;
